@@ -1,6 +1,12 @@
 #pragma once
 
 #include "ofMain.h"
+#include "ofxCv.h"
+#include "ofxOpenCv.h"
+#include <direct.h>
+
+using namespace cv;
+using namespace std;
 
 class ofApp : public ofBaseApp{
 
@@ -10,15 +16,34 @@ class ofApp : public ofBaseApp{
 		void draw();
 
 		void keyPressed(int key);
-		void keyReleased(int key);
-		void mouseMoved(int x, int y );
-		void mouseDragged(int x, int y, int button);
-		void mousePressed(int x, int y, int button);
-		void mouseReleased(int x, int y, int button);
-		void mouseEntered(int x, int y);
-		void mouseExited(int x, int y);
-		void windowResized(int w, int h);
-		void dragEvent(ofDragInfo dragInfo);
-		void gotMessage(ofMessage msg);
+
+		void loadPicture();
+		void calibration();
+		void chesboarFind();
+		void saveCarParams();
 		
+		static bool checkExistenceOfFolder(const string folder_name) {
+			if (_mkdir(folder_name.c_str()) == 0) {
+				return true;
+			}
+			else {
+				return false;
+			}
+		}
+
+		ofImage inputImg, outputImg;
+		int vCount = 10;
+		int hCount = 7;
+		vector<vector<Point3f>> objectPoints;
+		vector<vector<Point2f>> imagePoints;
+		vector<Point3f> obj;
+		unsigned int numberOfImage = 0;
+		Mat mtx, dist;
+
+		Size pictureSize;
+
+		vector<ofImage> imageList;
+		ofDirectory dir = "images/";
+
+		ofVideoGrabber grabber;
 };
