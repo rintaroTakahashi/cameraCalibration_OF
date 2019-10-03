@@ -4,6 +4,8 @@ using namespace std;
 using namespace cv;
 using namespace ofxCv;
 //https://yuki-sato.com/wordpress/2016/04/15/opencv-%E3%82%AB%E3%83%A1%E3%83%A9%E3%81%AE%E6%AD%AA%E3%81%BF%E3%82%92%E3%81%AA%E3%81%8A%E3%81%99%E3%82%AD%E3%83%A3%E3%83%AA%E3%83%96%E3%83%AC%E3%83%BC%E3%82%B7%E3%83%A7%E3%83%B3-c/
+//åˆéÆÅH
+//http://opencv.jp/opencv-2svn/cpp/camera_calibration_and_3d_reconstruction.html
 //--------------------------------------------------------------
 void ofApp::setup(){
 	loadPicture();
