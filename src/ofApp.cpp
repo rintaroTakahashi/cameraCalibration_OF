@@ -94,7 +94,7 @@ void ofApp::calibration() {
 void ofApp::saveCarParams() {
 	String path = "params/";
 	checkExistenceOfFolder(path);
-	String filepath = path + "calibration.yml";
+	String filepath = path + "calibration.xml";
 	FileStorage fs (filepath, FileStorage::WRITE);
 	fs << "mtx" << mtx;
 	fs << "dist" << dist;
