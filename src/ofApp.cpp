@@ -11,8 +11,9 @@ void ofApp::setup(){
 	loadPicture();
 	chesboarFind();
 	calibration();
-	grabber.initGrabber(1280, 720);
-	grabber.setDeviceID(0);
+	calibrationPicture();
+	grabber.setDeviceID(1);
+	grabber.initGrabber(4096, 2160);
 }
 
 //--------------------------------------------------------------
@@ -21,8 +22,8 @@ void ofApp::update(){
 	if(grabber.isFrameNew() ){
 		Mat frame = toCv(grabber.getPixelsRef());
 		Mat outputMat;
-		undistort(frame,outputMat,mtx,dist);
-		toOf(frame, outputImg);
+		undistort(frame,outputMat, _camera_mtx, _camera_dist);
+		toOf(outputMat, outputImg);
 		outputImg.update();
 	}
 }
@@ -60,6 +61,7 @@ void ofApp::loadPicture() {
 
 //チェスボードのコーナー検出
 void ofApp::chesboarFind() {
+	cout << "corner find" << endl;
 	Mat gray, input;
 	for (unsigned int i = 0; i < numberOfImage; i++) {
 		input = ofxCv::toCv(imageList[i]);
@@ -71,12 +73,14 @@ void ofApp::chesboarFind() {
 			cornerSubPix(gray, centers, Size(11,11),Size(-1,-1),TermCriteria(TermCriteria::EPS+TermCriteria::COUNT, 30, 0.1));
 			objectPoints.push_back(obj);
 			imagePoints.push_back(centers);
-			cout << "find : " << obj <<endl;
+			cout << "read "  << string(to_string(i)) << endl;
+			cout << "find corner" <<endl;
 		}
 		else {
 			cout << "not found" << endl;
 		}
 	}
+	cout << "--------------" << endl;
 }
 
 //カメラキャリブレーション
@@ -85,19 +89,50 @@ void ofApp::calibration() {
 	mtx = Mat(3, 3, CV_64F);
 	dist = Mat(8, 1, CV_64F);
 	//内部・外部パラメータの推定
+	//ofxCvのカメラキャリブレーションもある
 	calibrateCamera(objectPoints, imagePoints, pictureSize, mtx, dist, rvecs, tvecs);
 	saveCarParams();
 	cout << "cal end" << endl;
+	cout << "--------------" << endl;
+
 }
 
 //カメラキャリブレーション用パラメータ保存
 void ofApp::saveCarParams() {
 	String path = "params/";
 	checkExistenceOfFolder(path);
-	String filepath = path + "calibration.xml";
+
+	String filepath = path + "calibration.yml";
 	FileStorage fs (filepath, FileStorage::WRITE);
 	fs << "mtx" << mtx;
 	fs << "dist" << dist;
 	fs.release();
 	cout << "save cal params" << endl;
+	cout << "--------------" << endl;
+
+}
+
+void ofApp::calibrationPicture() {
+	FileStorage fs("params/calibration.yml", FileStorage::READ);
+	fs["mtx"] >> _camera_mtx;
+	fs["dist"] >> _camera_dist;
+	fs.release();
+	cout << "create calibration picture " << endl;
+	std::time(&rawtime);
+	localtime_s(&timeinfo, &rawtime);
+	long tmpHHmmss = timeinfo.tm_hour * 10000 + timeinfo.tm_min * 100 + timeinfo.tm_sec;
+	String filepath = "calibrationImg/" + string(to_string(tmpHHmmss)) +string("/");
+	checkExistenceOfFolder(filepath);
+
+	for (int i = 0; i < imageList.size(); i++) {
+		Mat outputMat;
+		ofImage output;
+		undistort(toCv(imageList[i]), outputMat, mtx, dist);
+		toOf(outputMat, output);
+		output.update();
+		output.save(string(filepath) + string(to_string(i)) + string("_cal.png"));
+		cout << string(filepath) + string(to_string(i)) + string("_cal.png") << endl;
+	}
+	imageList.clear();
+	cout << "--------------" << endl;
 }
