@@ -22,7 +22,8 @@ class ofApp : public ofBaseApp{
 		void calibration();
 		void chesboarFind();
 		void saveCarParams();
-		void calibrationPicture();
+		void savePicture();
+		void computeReprojectionErrors();
 		
 		static bool checkExistenceOfFolder(const string folder_name) {
 			if (_mkdir(folder_name.c_str()) == 0) {
@@ -40,10 +41,14 @@ class ofApp : public ofBaseApp{
 		vector<vector<Point3f>> objectPoints;
 		vector<vector<Point2f>> imagePoints;
 		vector<Point3f> obj;
+		vector<Point3f> outputPoint;
 		unsigned int numberOfImage = 0;
 		Mat mtx, dist;
 
+		float projectionError;
+
 		Size pictureSize;
+		vector<Mat> rvecs, tvecs;
 
 		vector<ofImage> imageList;
 		ofDirectory dir = "images/";

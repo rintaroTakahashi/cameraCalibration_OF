@@ -11,9 +11,6 @@ void ofApp::setup(){
 	loadPicture();
 	chesboarFind();
 	calibration();
-	calibrationPicture();
-	grabber.setDeviceID(1);
-	grabber.initGrabber(4096, 2160);
 }
 
 //--------------------------------------------------------------
@@ -35,8 +32,17 @@ void ofApp::draw(){
 
 //--------------------------------------------------------------
 void ofApp::keyPressed(int key){
-	if (key == 'e') {
-		exit();
+	switch (key) {
+	case 'e':
+		computeReprojectionErrors();
+		break;
+	case 's':
+		savePicture();
+		break;
+	case 'v':
+		grabber.setDeviceID(1);
+		grabber.initGrabber(4096, 2160);
+		break;
 	}
 }
 
@@ -46,6 +52,7 @@ void ofApp::loadPicture() {
 	dir.listDir();
 	dir.allowExt(".png");
 	dir.sort();
+	cout << "picture loading" << endl;
 	for (int i = 0; i < dir.size(); i++) {
 		ofImage img;
 		img.load(dir.getPath(i));
@@ -70,7 +77,7 @@ void ofApp::chesboarFind() {
 		vector<Point2f> centers;
 		bool find = findChessboardCorners(gray, chessboardPatterns, centers, CALIB_CB_ADAPTIVE_THRESH| CALIB_CB_NORMALIZE_IMAGE);
 		if (find) {
-			cornerSubPix(gray, centers, Size(11,11),Size(-1,-1),TermCriteria(TermCriteria::EPS+TermCriteria::COUNT, 30, 0.1));
+			//cornerSubPix(gray, centers, Size(5,5),Size(-1,-1),TermCriteria(TermCriteria::EPS+TermCriteria::COUNT, 30, 0.1));
 			objectPoints.push_back(obj);
 			imagePoints.push_back(centers);
 			cout << "read "  << string(to_string(i)) << endl;
@@ -85,7 +92,6 @@ void ofApp::chesboarFind() {
 
 //カメラキャリブレーション
 void ofApp::calibration() {
-	vector<Mat> rvecs, tvecs;
 	mtx = Mat(3, 3, CV_64F);
 	dist = Mat(8, 1, CV_64F);
 	//内部・外部パラメータの推定
@@ -94,7 +100,6 @@ void ofApp::calibration() {
 	saveCarParams();
 	cout << "cal end" << endl;
 	cout << "--------------" << endl;
-
 }
 
 //カメラキャリブレーション用パラメータ保存
@@ -112,7 +117,8 @@ void ofApp::saveCarParams() {
 
 }
 
-void ofApp::calibrationPicture() {
+//取り込んだ画像を補正して保存する
+void ofApp::savePicture() {
 	FileStorage fs("params/calibration.yml", FileStorage::READ);
 	fs["mtx"] >> _camera_mtx;
 	fs["dist"] >> _camera_dist;
@@ -135,4 +141,25 @@ void ofApp::calibrationPicture() {
 	}
 	imageList.clear();
 	cout << "--------------" << endl;
+}
+
+//再投影誤差
+void ofApp::computeReprojectionErrors() {
+	vector<float> pn;
+	double totalerror = 0;
+	double totalPoints = 0;
+	pn.resize(objectPoints.size());
+	for (int i = 0; i < obj.size(); i++) {
+		double error = 0;
+		vector<Point2f> imagePoints2;
+		projectPoints(objectPoints[i], rvecs[i], tvecs[i], mtx, dist, imagePoints2);
+		error = norm(imagePoints[i], imagePoints2, NORM_L2);
+		size_t n  = objectPoints[i].size();
+		pn[i] = (float)sqrt(error * error / n);
+		totalerror += error * error;
+		totalPoints += n;
+	}
+
+	projectionError = sqrt(totalerror/totalPoints);
+	cout << "error" << projectionError << endl;
 }
