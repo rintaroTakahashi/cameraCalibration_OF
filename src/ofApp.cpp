@@ -8,7 +8,7 @@ using namespace ofxCv;
 //http://opencv.jp/opencv-2svn/cpp/camera_calibration_and_3d_reconstruction.html
 //--------------------------------------------------------------
 void ofApp::setup(){
-	loadPicture();
+	dir = checkDirectory();
 	chesboarFind();
 	calibration();
 }
@@ -46,45 +46,30 @@ void ofApp::keyPressed(int key){
 	}
 }
 
-//フォルダ内の画像全部読み込み
-void ofApp::loadPicture() {
-	//https://qiita.com/FollowTheDarkside/items/278dca14561c347f637c
-	dir.listDir();
-	dir.allowExt(".png");
-	dir.sort();
-	cout << "picture loading" << endl;
-	for (int i = 0; i < dir.size(); i++) {
-		ofImage img;
-		img.load(dir.getPath(i));
-		imageList.push_back(img);
-		numberOfImage++;
-	}
+//チェスボードのコーナー検出
+void ofApp::chesboarFind() {
+	cout << "chess check" << endl;
+	Mat gray, input;
+	Size chessboardPatterns(hCount, vCount);
+	vector<Point2f> centers;
+	ofImage inputImg;
+	pictureSize = Size(loadPicture(0).getWidth(), loadPicture(0).getHeight());
 	for (int j = 0; j < hCount * vCount; j++) {
 		obj.push_back(Point3f(j / hCount, j % vCount, 0.0f));
 	}
-	pictureSize = Size(imageList[0].getWidth(),imageList[0].getHeight());
-	cout << "picture num" << numberOfImage <<endl;
-}
-
-//チェスボードのコーナー検出
-void ofApp::chesboarFind() {
-	cout << "corner find" << endl;
-	Mat gray, input;
-	for (unsigned int i = 0; i < numberOfImage; i++) {
-		input = ofxCv::toCv(imageList[i]);
+	cout << "object check " << endl;
+	for (unsigned int i = 0; i < dir.size(); i++) {
+		input = ofxCv::toCv(loadPicture(i));
 		cvtColor(input, gray, CV_BGR2GRAY);
-		Size chessboardPatterns(hCount,vCount);
-		vector<Point2f> centers;
 		bool find = findChessboardCorners(gray, chessboardPatterns, centers, CALIB_CB_ADAPTIVE_THRESH| CALIB_CB_NORMALIZE_IMAGE);
 		if (find) {
-			//cornerSubPix(gray, centers, Size(5,5),Size(-1,-1),TermCriteria(TermCriteria::EPS+TermCriteria::COUNT, 30, 0.1));
+			cornerSubPix(gray, centers, Size(5,5),Size(-1,-1),TermCriteria(TermCriteria::EPS+TermCriteria::COUNT, 30, 0.1));
 			objectPoints.push_back(obj);
 			imagePoints.push_back(centers);
-			cout << "read "  << string(to_string(i)) << endl;
-			cout << "find corner" <<endl;
+			cout << "find corner" << i << "/" << dir.size() <<endl;
 		}
 		else {
-			cout << "not found" << endl;
+			cout << "not found" << string(to_string(i)) << endl;
 		}
 	}
 	cout << "--------------" << endl;
@@ -106,7 +91,6 @@ void ofApp::calibration() {
 void ofApp::saveCarParams() {
 	String path = "params/";
 	checkExistenceOfFolder(path);
-
 	String filepath = path + "calibration.yml";
 	FileStorage fs (filepath, FileStorage::WRITE);
 	fs << "mtx" << mtx;
@@ -114,7 +98,6 @@ void ofApp::saveCarParams() {
 	fs.release();
 	cout << "save cal params" << endl;
 	cout << "--------------" << endl;
-
 }
 
 //取り込んだ画像を補正して保存する
@@ -124,23 +107,45 @@ void ofApp::savePicture() {
 	fs["dist"] >> _camera_dist;
 	fs.release();
 	cout << "create calibration picture " << endl;
-	std::time(&rawtime);
-	localtime_s(&timeinfo, &rawtime);
-	long tmpHHmmss = timeinfo.tm_hour * 10000 + timeinfo.tm_min * 100 + timeinfo.tm_sec;
-	String filepath = "calibrationImg/" + string(to_string(tmpHHmmss)) +string("/");
+	String filepath = "calibrationImg/" + string(to_string(getNowtime())) +string("/");
 	checkExistenceOfFolder(filepath);
-
-	for (int i = 0; i < imageList.size(); i++) {
+	for (int i = 0; i < dir.size(); i++) {
 		Mat outputMat;
 		ofImage output;
-		undistort(toCv(imageList[i]), outputMat, mtx, dist);
+		undistort(toCv(loadPicture(i)), outputMat, mtx, dist);
 		toOf(outputMat, output);
 		output.update();
 		output.save(string(filepath) + string(to_string(i)) + string("_cal.png"));
 		cout << string(filepath) + string(to_string(i)) + string("_cal.png") << endl;
 	}
-	imageList.clear();
 	cout << "--------------" << endl;
+}
+
+//指定のフォルダ内画像を取得
+ofImage ofApp::loadPicture(int num) {
+	//https://qiita.com/FollowTheDarkside/items/278dca14561c347f637c
+	ofImage img;
+	img.load(dir.getPath(num));
+	return img;
+}
+
+//現在時刻を取得
+long ofApp::getNowtime() {
+	std::time(&rawtime);
+	localtime_s(&timeinfo, &rawtime);
+	long tmpHHmmss = timeinfo.tm_hour * 10000 + timeinfo.tm_min * 100 + timeinfo.tm_sec;
+	return tmpHHmmss;
+}
+
+//キャリブレーション用画像が保存されているディレクトリを取得
+ofDirectory ofApp::checkDirectory() {
+	string paths = "images/";
+	checkExistenceOfFolder(paths);
+	ofDirectory d = paths;
+	d.listDir();
+	d.allowExt(".png");
+	d.sort();
+	return d;
 }
 
 //再投影誤差
@@ -159,7 +164,9 @@ void ofApp::computeReprojectionErrors() {
 		totalerror += error * error;
 		totalPoints += n;
 	}
-
 	projectionError = sqrt(totalerror/totalPoints);
+	FileStorage fs("params/calibration.yml", FileStorage::APPEND);
+	fs << "error " << projectionError;
+	fs.release();
 	cout << "error" << projectionError << endl;
 }

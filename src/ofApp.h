@@ -18,12 +18,15 @@ class ofApp : public ofBaseApp{
 
 		void keyPressed(int key);
 
-		void loadPicture();
 		void calibration();
 		void chesboarFind();
 		void saveCarParams();
 		void savePicture();
 		void computeReprojectionErrors();
+
+		ofDirectory checkDirectory();
+		ofImage loadPicture(int num);
+		long getNowtime();
 		
 		static bool checkExistenceOfFolder(const string folder_name) {
 			if (_mkdir(folder_name.c_str()) == 0) {
@@ -33,27 +36,22 @@ class ofApp : public ofBaseApp{
 				return false;
 			}
 		}
-		Mat _camera_mtx, _camera_dist;
-
-		ofImage inputImg, outputImg;
-		int vCount = 7;
-		int hCount = 10;
 		vector<vector<Point3f>> objectPoints;
 		vector<vector<Point2f>> imagePoints;
 		vector<Point3f> obj;
 		vector<Point3f> outputPoint;
-		unsigned int numberOfImage = 0;
-		Mat mtx, dist;
-
-		float projectionError;
-
-		Size pictureSize;
 		vector<Mat> rvecs, tvecs;
 
-		vector<ofImage> imageList;
-		ofDirectory dir = "images/";
-
+		Mat mtx, dist;
+		Mat _camera_mtx, _camera_dist;
+		ofImage outputImg;
+		ofDirectory dir;
+		Size pictureSize;
 		ofVideoGrabber grabber;
-		std::time_t rawtime;
-		std::tm timeinfo;
+		time_t rawtime;
+		tm timeinfo;
+
+		float projectionError;
+		int vCount = 7;
+		int hCount = 10;
 };
