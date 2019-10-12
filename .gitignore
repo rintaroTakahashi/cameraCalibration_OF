@@ -11,6 +11,8 @@ Release*/
 
 /bin/*
 !/bin/data/
+*.png
+*.jpg
 
 /.vs/*
  
