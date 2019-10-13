@@ -7,37 +7,47 @@ using namespace ofxCv;
 //公式？
 //http://opencv.jp/opencv-2svn/cpp/camera_calibration_and_3d_reconstruction.html
 //--------------------------------------------------------------
-void ofApp::setup(){
+void ofApp::setup() {
 	dir = checkDirectory();
-	chesboarFind();
-	calibration();
 }
 
 //--------------------------------------------------------------
-void ofApp::update(){
+void ofApp::update() {
 	grabber.update();
-	if(grabber.isFrameNew() ){
-		Mat frame = toCv(grabber.getPixelsRef());
+	if (grabber.isFrameNew()) {
 		Mat outputMat;
-		undistort(frame,outputMat, _camera_mtx, _camera_dist);
+		undistort(toCv(grabber.getPixelsRef()), outputMat, _camera_mtx, _camera_dist);
 		toOf(outputMat, outputImg);
 		outputImg.update();
 	}
 }
 
 //--------------------------------------------------------------
-void ofApp::draw(){
-	outputImg.draw(0,0,1024,576);
+void ofApp::draw() {
+	outputImg.draw(0, 0, 1024, 576);
 }
 
 //--------------------------------------------------------------
-void ofApp::keyPressed(int key){
+void ofApp::keyPressed(int key) {
 	switch (key) {
+	case 'q':
+		chesboarFind();
+		calibration();
+		saveCalParams();
+		break;
+	case 'r':
+		chesboarFind();
+		readyml("data/calibrationImg/zett/calibration.yml");
+		cout << "read param" << endl;
+		cout << "--------------" << endl;
+		break;
 	case 'e':
 		computeReprojectionErrors();
+		cout << "--------------" << endl;
 		break;
 	case 's':
 		savePicture();
+		cout << "--------------" << endl;
 		break;
 	case 'v':
 		grabber.setDeviceID(1);
@@ -45,6 +55,10 @@ void ofApp::keyPressed(int key){
 		break;
 	}
 }
+
+//---------------------------------------------------------------
+//キャリブレーション用のメイン機能
+//---------------------------------------------------------------
 
 //チェスボードのコーナー検出
 void ofApp::chesboarFind() {
@@ -54,22 +68,23 @@ void ofApp::chesboarFind() {
 	vector<Point2f> centers;
 	ofImage inputImg;
 	pictureSize = Size(loadPicture(0).getWidth(), loadPicture(0).getHeight());
+
 	for (int j = 0; j < hCount * vCount; j++) {
 		obj.push_back(Point3f(j / hCount, j % vCount, 0.0f));
 	}
 	cout << "object check " << endl;
 	for (unsigned int i = 0; i < dir.size(); i++) {
-		input = ofxCv::toCv(loadPicture(i));
+		input = toCv(loadPicture(i));
 		cvtColor(input, gray, CV_BGR2GRAY);
-		bool find = findChessboardCorners(gray, chessboardPatterns, centers, CALIB_CB_ADAPTIVE_THRESH| CALIB_CB_NORMALIZE_IMAGE);
+		bool find = findChessboardCorners(gray, chessboardPatterns, centers, CALIB_CB_ADAPTIVE_THRESH | CALIB_CB_NORMALIZE_IMAGE);
 		if (find) {
-			cornerSubPix(gray, centers, Size(5,5),Size(-1,-1),TermCriteria(TermCriteria::EPS+TermCriteria::COUNT, 30, 0.1));
+			cornerSubPix(gray, centers, Size(5, 5), Size(-1, -1), TermCriteria(TermCriteria::EPS + TermCriteria::COUNT, 30, 0.1));
 			objectPoints.push_back(obj);
 			imagePoints.push_back(centers);
-			cout << "find corner" << i << "/" << dir.size() <<endl;
+			cout << "find corner" << i + 1 << "/" << dir.size() << endl;
 		}
 		else {
-			cout << "not found" << string(to_string(i)) << endl;
+			cout << "not found" << i + 1 << "/" << dir.size() << endl;
 		}
 	}
 	cout << "--------------" << endl;
@@ -80,19 +95,17 @@ void ofApp::calibration() {
 	mtx = Mat(3, 3, CV_64F);
 	dist = Mat(8, 1, CV_64F);
 	//内部・外部パラメータの推定
-	//ofxCvのカメラキャリブレーションもある
 	calibrateCamera(objectPoints, imagePoints, pictureSize, mtx, dist, rvecs, tvecs);
-	saveCarParams();
 	cout << "cal end" << endl;
 	cout << "--------------" << endl;
 }
 
 //カメラキャリブレーション用パラメータ保存
-void ofApp::saveCarParams() {
+void ofApp::saveCalParams() {
 	String path = "params/";
 	checkExistenceOfFolder(path);
 	String filepath = path + "calibration.yml";
-	FileStorage fs (filepath, FileStorage::WRITE);
+	FileStorage fs(filepath, FileStorage::WRITE);
 	fs << "mtx" << mtx;
 	fs << "dist" << dist;
 	fs.release();
@@ -102,14 +115,23 @@ void ofApp::saveCarParams() {
 
 //取り込んだ画像を補正して保存する
 void ofApp::savePicture() {
-	FileStorage fs("params/calibration.yml", FileStorage::READ);
-	fs["mtx"] >> _camera_mtx;
-	fs["dist"] >> _camera_dist;
-	fs.release();
 	cout << "create calibration picture " << endl;
-	String filepath = "calibrationImg/" + string(to_string(getNowtime())) +string("/");
+	String filepath = "calibrationImg/" + string(to_string(getNowtime())) + string("/");
 	checkExistenceOfFolder(filepath);
-	for (int i = 0; i < dir.size(); i++) {
+	int doCalNum = dir.size();
+	if (doCalNum > 10) {
+		//枚数が多いと書き出しがつらいので
+		doCalNum = 10;
+	}
+	if (mtx.empty() && !_camera_mtx.empty()) {
+		mtx = _camera_mtx;
+		dist = _camera_dist;
+	}
+	else if (mtx.empty() && _camera_mtx.empty()) {
+
+		return;
+	}
+	for (int i = 0; i < doCalNum; i++) {
 		Mat outputMat;
 		ofImage output;
 		undistort(toCv(loadPicture(i)), outputMat, mtx, dist);
@@ -118,8 +140,11 @@ void ofApp::savePicture() {
 		output.save(string(filepath) + string(to_string(i)) + string("_cal.png"));
 		cout << string(filepath) + string(to_string(i)) + string("_cal.png") << endl;
 	}
-	cout << "--------------" << endl;
 }
+
+//---------------------------------------------------------------
+// サブ機能
+//---------------------------------------------------------------
 
 //指定のフォルダ内画像を取得
 ofImage ofApp::loadPicture(int num) {
@@ -131,7 +156,7 @@ ofImage ofApp::loadPicture(int num) {
 
 //現在時刻を取得
 long ofApp::getNowtime() {
-	std::time(&rawtime);
+	time(&rawtime);
 	localtime_s(&timeinfo, &rawtime);
 	long tmpHHmmss = timeinfo.tm_hour * 10000 + timeinfo.tm_min * 100 + timeinfo.tm_sec;
 	return tmpHHmmss;
@@ -139,9 +164,7 @@ long ofApp::getNowtime() {
 
 //キャリブレーション用画像が保存されているディレクトリを取得
 ofDirectory ofApp::checkDirectory() {
-	string paths = "images/";
-	checkExistenceOfFolder(paths);
-	ofDirectory d = paths;
+	ofDirectory d = "images/";
 	d.listDir();
 	d.allowExt(".png");
 	d.sort();
@@ -150,23 +173,36 @@ ofDirectory ofApp::checkDirectory() {
 
 //再投影誤差
 void ofApp::computeReprojectionErrors() {
-	vector<float> pn;
 	double totalerror = 0;
 	double totalPoints = 0;
-	pn.resize(objectPoints.size());
-	for (int i = 0; i < obj.size(); i++) {
+	if (objectPoints.empty() || rvecs.empty() || tvecs.empty()) {
+		cout << "error ReprojectionErrors" <<endl;
+		return;
+	}
+	if (mtx.empty() && !_camera_mtx.empty()) {
+		mtx = _camera_mtx;
+		dist = _camera_dist;
+	}
+	for (int i = 0; i < objectPoints.size(); i++) {
 		double error = 0;
 		vector<Point2f> imagePoints2;
 		projectPoints(objectPoints[i], rvecs[i], tvecs[i], mtx, dist, imagePoints2);
 		error = norm(imagePoints[i], imagePoints2, NORM_L2);
-		size_t n  = objectPoints[i].size();
-		pn[i] = (float)sqrt(error * error / n);
+		size_t n = objectPoints[i].size();
 		totalerror += error * error;
 		totalPoints += n;
 	}
-	projectionError = sqrt(totalerror/totalPoints);
+	projectionError = sqrt(totalerror / totalPoints);
 	FileStorage fs("params/calibration.yml", FileStorage::APPEND);
 	fs << "error " << projectionError;
 	fs.release();
 	cout << "error" << projectionError << endl;
+}
+
+//ymlファイル読み取り
+void ofApp::readyml(String path) {
+	FileStorage fs(path, FileStorage::READ);
+	fs["mtx"] >> _camera_mtx;
+	fs["dist"] >> _camera_dist;
+	fs.release();
 }

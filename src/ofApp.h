@@ -15,14 +15,14 @@ class ofApp : public ofBaseApp{
 		void setup();
 		void update();
 		void draw();
-
 		void keyPressed(int key);
 
 		void calibration();
 		void chesboarFind();
-		void saveCarParams();
+		void saveCalParams();
 		void savePicture();
 		void computeReprojectionErrors();
+		void readyml(String path);
 
 		ofDirectory checkDirectory();
 		ofImage loadPicture(int num);
