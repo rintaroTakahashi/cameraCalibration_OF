@@ -37,7 +37,7 @@ void ofApp::keyPressed(int key) {
 		break;
 	case 'r':
 		chesboarFind();
-		readyml("data/calibrationImg/zett/calibration.yml");
+		readyml(read_path);
 		cout << "read param" << endl;
 		cout << "--------------" << endl;
 		break;
@@ -105,10 +105,7 @@ void ofApp::saveCalParams() {
 	String path = "params/";
 	checkExistenceOfFolder(path);
 	String filepath = path + "calibration.yml";
-	FileStorage fs(filepath, FileStorage::WRITE);
-	fs << "mtx" << mtx;
-	fs << "dist" << dist;
-	fs.release();
+	writeyml(path, mtx, dist);
 	cout << "save cal params" << endl;
 	cout << "--------------" << endl;
 }
@@ -175,8 +172,9 @@ ofDirectory ofApp::checkDirectory() {
 void ofApp::computeReprojectionErrors() {
 	double totalerror = 0;
 	double totalPoints = 0;
+	float projectionError = 0;
 	if (objectPoints.empty() || rvecs.empty() || tvecs.empty()) {
-		cout << "error ReprojectionErrors" <<endl;
+		cout << "error ReprojectionErrors" << endl;
 		return;
 	}
 	if (mtx.empty() && !_camera_mtx.empty()) {
@@ -193,9 +191,7 @@ void ofApp::computeReprojectionErrors() {
 		totalPoints += n;
 	}
 	projectionError = sqrt(totalerror / totalPoints);
-	FileStorage fs("params/calibration.yml", FileStorage::APPEND);
-	fs << "error " << projectionError;
-	fs.release();
+	appendyml(param_path, to_string(projectionError));
 	cout << "error" << projectionError << endl;
 }
 
@@ -204,5 +200,20 @@ void ofApp::readyml(String path) {
 	FileStorage fs(path, FileStorage::READ);
 	fs["mtx"] >> _camera_mtx;
 	fs["dist"] >> _camera_dist;
+	fs.release();
+}
+
+//ymlファイル書き出し
+void ofApp::writeyml(String path, Mat _mtx, Mat _dist) {
+	FileStorage fs(path, FileStorage::WRITE);
+	fs << "mtx" << _mtx;
+	fs << "dist" << _dist;
+	fs.release();
+}
+
+//ymlファイル追加書き出し
+void ofApp::appendyml(String path, String message) {
+	FileStorage fs(path, FileStorage::APPEND);
+	fs << "error " << message;
 	fs.release();
 }
